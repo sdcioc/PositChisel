@@ -47,10 +47,11 @@ class PositDiv(es: Int, size : Int) extends Module {
     fraction_1_result := (fraction_1 / fraction_2)
     fraction_1_result_rem := fraction_1 % fraction_2
     
-    fraction_to_exponent := fraction_1_result >> (size-2).U
+    fraction_to_exponent := Mux(fraction_1_result < (1.U << (size-2).U), 1.U, 0.U)
+    //fraction_1_result >> (size-1).U
     
     //Poate sa aiba doar unul in plus deoarece 1.x * 1.x < 2 *2 = 4 => (1.x * 1.x) / 2 < 2
-    fraction_2_result := Mux(fraction_to_exponent === 0.U, fraction_1_result << 1, fraction_1_result) & (~(1.U << (size-2)))
+    fraction_2_result := Mux(fraction_to_exponent === 1.U, fraction_1_result << 1, fraction_1_result) & (~(1.U << (size-2)))
     //(fraction_1_result << shiftLeft) & (~(1.U << (size-2)))
     val exponent_1_result = Wire(UInt(size.W))
     val exponent_2_result = Wire(UInt(size.W))
@@ -142,9 +143,9 @@ class PositDiv(es: Int, size : Int) extends Module {
         io.o_posit.regime_size := 0.U
         when(io.i_posit_2.special_number) {
             when (io.i_posit_2.sign) {
-                io.o_posit.sign := 1.U
-            } .otherwise {
                 io.o_posit.sign := io.i_posit_1.sign
+            } .otherwise {
+                io.o_posit.sign := 1.U
             }
         } .otherwise {
             io.o_posit.sign := io.i_posit_1.sign
@@ -157,7 +158,7 @@ class PositDiv(es: Int, size : Int) extends Module {
         io.o_posit.exponent_size := 0.U
         io.o_posit.fraction_size := 0.U
         io.o_posit.regime_size := 0.U
-        io.o_posit.sign := 1.U
+        io.o_posit.sign := io.i_posit_2.sign ^ 1.U
     } .otherwise {
         //io.o_posit.sign := io.i_posit_1.sign ^ io.i_posit_2.sign
         io.o_posit.sign := 0.U
@@ -213,8 +214,8 @@ class PositDiv(es: Int, size : Int) extends Module {
     val possible_value = Wire(UInt(size.W))
     possible_value := 0.U
     add_one := bit_nplus1 | bits_more
-    io.debug_1 := bit_nplus1
-    io.debug_2 := bits_more
+    io.debug_1 := fraction_to_exponent
+    io.debug_2 := fraction_2_result
     when (io.o_posit.special_number) {
         io.o_bits := encode_bits
     } .otherwise {
