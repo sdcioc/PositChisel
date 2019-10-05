@@ -42,32 +42,32 @@ class PositDiv(es: Int, size : Int) extends Module {
     val fraction_1_result_rem = Wire(UInt((2*size).W))
     val fraction_2_result = Wire(UInt((2*size).W))
     val fraction_to_exponent = Wire(UInt(size.W))
-    fraction_1 := ((1.U << (size.U-2.U)) | (io.i_posit_1.fraction << (size.U-2.U-io.i_posit_1.fraction_size))) << size.U
+    fraction_1 := ((1.U << (size.U-2.U)) | (io.i_posit_1.fraction << (size.U-2.U-io.i_posit_1.fraction_size))) << (size-2).U
     fraction_2 := (1.U << (size.U-2.U)) | (io.i_posit_2.fraction << (size.U-2.U-io.i_posit_2.fraction_size))
-    fraction_1_result := (fraction_1 / fraction_2) << (size-2).U
+    fraction_1_result := (fraction_1 / fraction_2)
     fraction_1_result_rem := fraction_1 % fraction_2
-    val shiftLeft =  Wire(UInt((log2Ceil(size)+3).W))
-    shiftLeft := PriorityEncoder(Reverse(fraction_1_result)) - 1.U
-    fraction_to_exponent := shiftLeft & (Fill(size, 1.U(1.W)) >> (size.U - io.i_posit_1.max_exponent_size))
-    val fraction_to_regime = Wire(UInt(size.W))
-    fraction_to_regime := shiftLeft >> io.i_posit_1.max_exponent_size
+    
+    fraction_to_exponent := fraction_1_result >> (size-2).U
+    
     //Poate sa aiba doar unul in plus deoarece 1.x * 1.x < 2 *2 = 4 => (1.x * 1.x) / 2 < 2
-    fraction_2_result := (fraction_1_result << shiftLeft) & (~(1.U << (2*size-2)))
+    fraction_2_result := Mux(fraction_to_exponent === 0.U, fraction_1_result << 1, fraction_1_result) & (~(1.U << (size-2)))
+    //(fraction_1_result << shiftLeft) & (~(1.U << (size-2)))
     val exponent_1_result = Wire(UInt(size.W))
     val exponent_2_result = Wire(UInt(size.W))
     val exponent_to_regime = Wire(UInt(size.W))
+    /*
     exponent_1_result := io.i_posit_1.exponent - io.i_posit_2.exponent - fraction_to_exponent
     exponent_to_regime := exponent_1_result >> io.i_posit_1.max_exponent_size
     exponent_2_result := Mux(exponent_to_regime > 0.U,
                             exponent_1_result & (Fill(size, 1.U(1.W))>> (size.U - io.i_posit_1.max_exponent_size)),
                             exponent_1_result)
-    
+    */
     exponent_to_regime := 0.U
     exponent_1_result := 0.U
     exponent_2_result := 0.U
     when(io.i_posit_2.exponent > io.i_posit_1.exponent) {
         exponent_1_result := (1.U << io.i_posit_1.max_exponent_size) + io.i_posit_1.exponent - io.i_posit_2.exponent
-        when(fraction_to_exponent  > exponent_1_result) {
+        when(fraction_to_exponent > exponent_1_result) {
             exponent_2_result := (1.U << io.i_posit_1.max_exponent_size) + exponent_1_result - fraction_to_exponent
             exponent_to_regime := 2.U
         } .otherwise {
@@ -85,7 +85,7 @@ class PositDiv(es: Int, size : Int) extends Module {
         }
     } 
     val regime_1_result = Wire(SInt((size+2).W))
-    regime_1_result := io.i_posit_1.regime -io.i_posit_2.regime  - exponent_to_regime.zext - fraction_to_regime.zext
+    regime_1_result := io.i_posit_1.regime - io.i_posit_2.regime  - exponent_to_regime.zext
     val regime_size = Wire(UInt(size.W))
     regime_size := Mux(regime_1_result >= 0.S, regime_1_result.asUInt + 2.U, (-regime_1_result).asUInt + 1.U)
     
@@ -197,10 +197,10 @@ class PositDiv(es: Int, size : Int) extends Module {
                 io.o_posit.exponent_size := exponent_size
                 io.o_posit.fraction_size := 0.U
             } .otherwise {
-                bit_nplus1 := ~((fraction_2_result & (1.U << ((2*size-3).U - fraction_size))) === 0.U) & 1.U
-                bits_more := (~((fraction_2_result & (Cat(0.U, Fill((2*size-1), 1.U)) >> (1.U+fraction_size))) === 0.U) & 1.U)  | (~(fraction_1_result_rem === 0.U) & 1.U)
+                bit_nplus1 := ~((fraction_2_result & (1.U << ((size-3).U - fraction_size))) === 0.U) & 1.U
+                bits_more := (~((fraction_2_result & (Cat(0.U, Fill((size-1), 1.U)) >> (1.U+fraction_size))) === 0.U) & 1.U)  | (~(fraction_1_result_rem === 0.U) & 1.U)
                 io.o_posit.exponent := exponent_2_result
-                io.o_posit.fraction := fraction_2_result >> ((2*size-2).U - fraction_size)
+                io.o_posit.fraction := fraction_2_result >> ((size-2).U - fraction_size)
                 io.o_posit.exponent_size := exponent_size
                 io.o_posit.fraction_size := fraction_size
             }

@@ -26,7 +26,7 @@ object PositTestDiv {
             }
         }
 
-        var fraction_1: Int = (1 << (size-2)) + (posit_1.fraction << (size-2-posit_1.fraction_size)) << size
+        var fraction_1: Int = (1 << (size-2)) + (posit_1.fraction << (size-2-posit_1.fraction_size)) << (size-2)
         var fraction_2: Int = (1 << (size-2)) + (posit_2.fraction << (size-2-posit_2.fraction_size))
         var fraction: Int = fraction_1 / fraction_2
         var fraction_rem: Int = fraction_1 % fraction_2
@@ -41,18 +41,18 @@ object PositTestDiv {
         println("p1 fraction_size=" + posit_1.fraction_size.toString())
         println("p2 fraction_size=" + posit_2.fraction_size.toString())
         println("fraction=" + fraction.toString())
-        var comparare: Int = (1 << (2*size-2))
+        var comparare: Int = (1 << (size-2))
         println("comparare=" + comparare.toString())
         println("fraction_1=" + fraction_1.toString())
         println("fraction_2=" + fraction_2.toString())
         println("fraction=" + fraction.toString())
-        fraction = fraction << (size - 2)
+        fraction = fraction
         println("fraction=" + fraction.toString())
-        while(fraction < (1 << (2*size-2))) {
+        while(fraction < (1 << (size-2))) {
             fraction = fraction << 1
             exponent = exponent - 1
         }
-        fraction = fraction - (1 << (2*size-2))
+        fraction = fraction - (1 << (size-2))
         println("fraction=" + fraction.toString())
         println("exponent=" + exponent.toString())
         println("regime=" + regime.toString())
@@ -132,13 +132,13 @@ object PositTestDiv {
                 exponent = exponent >> 1
             } else {
                 println("before fraction=" + fraction.toString())
-                bitNplusOne = (fraction & (((1<<(2*size-2-fraction_size))-1))) >>> (2*size-3-fraction_size)
-                bitsMore = (fraction & ((1<<(2*size-3-fraction_size))-1))
+                bitNplusOne = (fraction & (((1<<(size-2-fraction_size))-1))) >>> (size-3-fraction_size)
+                bitsMore = (fraction & ((1<<(size-3-fraction_size))-1))
                 println("before bitsmore=" + bitsMore.toString())
-                if( ((fraction & ((1<<(2*size-3-fraction_size))-1)) > 0) || (fraction_rem > 0) ) {
+                if( ((fraction & ((1<<(size-3-fraction_size))-1)) > 0) || (fraction_rem > 0) ) {
                     bitsMore = 1
                 }
-                fraction = fraction >>> (2*size-2-fraction_size)
+                fraction = fraction >>> (size-2-fraction_size)
             }
         }
         out_posit.sign = 0
