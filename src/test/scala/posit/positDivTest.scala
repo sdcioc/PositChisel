@@ -179,13 +179,14 @@ object PositTestDiv {
 class TesterDivPosit(dut : PositDiv) extends PeekPokeTester(dut) {
     var aux: Int = 0;
 
-    /*
-    var index: Int = 1
-    var jindex: Int = 4
+    /**/
+    var index: Int = Integer.parseInt("48000000", 16)
+    var jindex: Int = Integer.parseInt("52000000", 16)
     poke(dut.io.i_bits_1, index)
     poke(dut.io.i_bits_2, jindex)
     step(1)
-    aux = PositTestDiv.int_div(index, jindex, 8, 2)
+    //aux = PositTestDiv.int_div(index, jindex, 32, 3)
+    aux = 1
     println("index is: " + index.toString)
     println("jindex is: " + jindex.toString)
     expect(dut.io.o_bits, aux)
@@ -198,11 +199,11 @@ class TesterDivPosit(dut : PositDiv) extends PeekPokeTester(dut) {
     println("Exponent size is: " + peek(dut.io.o_posit.exponent_size).toString)
     println("MAx exponent size is: " + peek(dut.io.o_posit.max_exponent_size).toString)
     println("fraction size is: " + peek(dut.io.o_posit.fraction_size).toString)
-    println("debug_1 is: " + peek(dut.io.debug_1).toString)
-    println("debug_2 is: " + peek(dut.io.debug_2).toString)
-    */
-    
+    println("debug_1 is: " + peek(dut.io.debug_1).toString(2))
+    println("debug_2 is: " + peek(dut.io.debug_2).toString(2))
     /**/
+    
+    /*
     for (index <- 0 until 256;
         jindex <- 0 until 256) {
         poke(dut.io.i_bits_1, index)
@@ -213,9 +214,9 @@ class TesterDivPosit(dut : PositDiv) extends PeekPokeTester(dut) {
         println("jindex is: " + jindex.toString)
         expect(dut.io.o_bits, aux)
     }
-    /**/
+    */
 }
 
 object TesterDivPosit extends App {
-    chisel3.iotesters.Driver(() => new PositDiv(3, 16)) { c => new TesterDivPosit(c) }
+    chisel3.iotesters.Driver(() => new PositDiv(3, 32)) { c => new TesterDivPosit(c) }
 }

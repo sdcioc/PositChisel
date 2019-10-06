@@ -3,6 +3,8 @@ package posit
 import chisel3._
 import chisel3.iotesters._
 
+import java.math.BigInteger
+
 object PositTestMul {
     def int_multiply(a : Int, b : Int, size: Int, max_exponent_size : Int) : Int = {
         var posit_1: TestPosit = new TestPosit(max_exponent_size, size)
@@ -157,13 +159,16 @@ object PositTestMul {
 class TesterMulPosit(dut : PositMul) extends PeekPokeTester(dut) {
     var aux: Int = 0;
 
-    /*
-    var index: Int = 2
-    var jindex: Int = 80
+    /**/
+    var index: BigInt = new BigInteger("c0000000", 16)
+    var index2: Int = Integer.parseInt("40000000", 16)
+    var jindex: BigInt = new BigInteger("c0000000", 16)
+    var jindex2: Int = Integer.parseInt("01100000000000000000000000000000", 2)
+    //long l = Long.parseLong("11000000000000000000000000000000", 2);
     poke(dut.io.i_bits_1, index)
     poke(dut.io.i_bits_2, jindex)
     step(1)
-    aux = PositTestMul.int_multiply(index, jindex, 8, 5)
+    aux = PositTestMul.int_multiply(index2, jindex2, 32, 3)
     println("index is: " + index.toString)
     println("jindex is: " + jindex.toString)
     expect(dut.io.o_bits, aux)
@@ -178,7 +183,7 @@ class TesterMulPosit(dut : PositMul) extends PeekPokeTester(dut) {
     println("fraction size is: " + peek(dut.io.o_posit.fraction_size).toString)
     println("debug_1 is: " + peek(dut.io.debug_1).toString)
     println("debug_2 is: " + peek(dut.io.debug_2).toString)
-    */
+    /*
     
     for (index <- 0 until 256;
         jindex <- 0 until 256) {
@@ -190,10 +195,10 @@ class TesterMulPosit(dut : PositMul) extends PeekPokeTester(dut) {
         println("jindex is: " + jindex.toString)
         expect(dut.io.o_bits, aux)
     }
-    /**/
+    */
 }
 
 object TesterMulPosit extends App {
-    chisel3.iotesters.Driver(() => new PositMul(2, 8)) { c => new TesterMulPosit(c) }
+    chisel3.iotesters.Driver(() => new PositMul(3, 32)) { c => new TesterMulPosit(c) }
 }
 

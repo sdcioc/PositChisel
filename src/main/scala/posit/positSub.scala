@@ -275,20 +275,24 @@ class PositSub(es: Int, size : Int) extends Module {
     possible_value := 0.U
     add_one := bit_nplus1 | bits_more
     special_sub := io.o_posit.special_number | io.i_posit_1.special_number | io.i_posit_2.special_number
-    io.debug_1 := fraction_1_result
+    io.debug_1 := initial_sign
     io.debug_2 := encode_bits
-    when (special_sub) {
-        io.o_bits := encode_bits
-    } .otherwise {
-        when (add_one) {
-            possible_value := encode_bits + 1.U
-        }.otherwise {
-            possible_value := encode_bits
-        }
-        when ( (io.i_posit_1.sign ^ initial_sign) === 1.U) {
-            io.o_bits := (1.U << (size-1)) | (~(possible_value-1.U))
+    when(io.i_bits_2 === 0.U) {
+        io.o_bits := io.i_bits_1
+    }.otherwise {
+        when (special_sub) {
+            io.o_bits := encode_bits
         } .otherwise {
-            io.o_bits := possible_value
+            when (add_one) {
+                possible_value := encode_bits + 1.U
+            }.otherwise {
+                possible_value := encode_bits
+            }
+            when ( (io.i_posit_1.sign ^ initial_sign) === 1.U) {
+                io.o_bits := (1.U << (size-1)) | (~(possible_value-1.U))
+            } .otherwise {
+                io.o_bits := possible_value
+            }
         }
     }
     /**/

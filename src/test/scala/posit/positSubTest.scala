@@ -3,6 +3,7 @@ package posit
 import chisel3._
 import chisel3.iotesters._
 
+import java.math.BigInteger
 
 object PositTestSub {
     def int_sub(a : Int, b : Int, size: Int, max_exponent_size : Int) : Int = {
@@ -213,13 +214,15 @@ object PositTestSub {
 class TesterSubPosit(dut : PositSub) extends PeekPokeTester(dut) {
     var aux: Int = 0;
 
-    /*
-    var index: Int = 1
-    var jindex: Int = 3
+    /**/
+    var index: BigInt = new BigInteger("c0000000", 16)
+    var index2: Int = Integer.parseInt("40000000", 16)
+    var jindex: BigInt = new BigInteger("00000000", 16)
+    var jindex2: Int = Integer.parseInt("01100000000000000000000000000000", 2)
     poke(dut.io.i_bits_1, index)
     poke(dut.io.i_bits_2, jindex)
     step(1)
-    aux = PositTestSub.int_sub(index, jindex, 8, 1)
+    aux = PositTestSub.int_sub(index2, jindex2, 32, 3)
     println("index is: " + index.toString)
     println("jindex is: " + jindex.toString)
     expect(dut.io.o_bits, aux)
@@ -234,7 +237,7 @@ class TesterSubPosit(dut : PositSub) extends PeekPokeTester(dut) {
     println("fraction size is: " + peek(dut.io.o_posit.fraction_size).toString)
     println("debug_1 is: " + peek(dut.io.debug_1).toString)
     println("debug_2 is: " + peek(dut.io.debug_2).toString)
-    */
+    /*
     
     for (index <- 128 until 256;
         jindex <- 128 until 256) {
@@ -246,9 +249,9 @@ class TesterSubPosit(dut : PositSub) extends PeekPokeTester(dut) {
         println("jindex is: " + jindex.toString)
         expect(dut.io.o_bits, aux)
     }
-    /**/
+    */
 }
 
 object TesterSubPosit extends App {
-    chisel3.iotesters.Driver(() => new PositSub(1, 8)) { c => new TesterSubPosit(c) }
+    chisel3.iotesters.Driver(() => new PositSub(3, 32)) { c => new TesterSubPosit(c) }
 }
