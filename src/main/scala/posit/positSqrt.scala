@@ -8,6 +8,7 @@ import chisel3.util._
 class PositSqrt(es: Int, size : Int) extends Module {
     val io = IO(new Bundle {
         val i_bits        = Input(Bits(size.W))
+        val i_ready        = Input(Bool())
         val o_bits        = Output(Bits(size.W))
         val i_posit       = Output(new Posit(es, size))
         val o_posit       = Output(new Posit(es, size))
@@ -47,28 +48,20 @@ class PositSqrt(es: Int, size : Int) extends Module {
     val partial_fraction_2 = Wire(UInt(size.W))
     val sqrt_module = Module(new UIntSqrt((size/2)))
     sqrt_module.io.i_bits := partial_fraction_1
+    sqrt_module.io.i_ready := io.i_ready
     partial_fraction_2 := sqrt_module.io.o_bits
     io.o_ready :=  sqrt_module.io.o_ready
     
-    val fraction_to_exponent = Wire(UInt(size.W))
     val partial_fraction_3 = Wire(UInt(size.W))
-    fraction_to_exponent := partial_fraction_2 >> ((size-2)/2).U
     //Poate sa aiba doar unul in plus deoarece 1.x * 2 < 2 * 2 = 4 => sqrt(1.x*2) < 2
-    //Poate sa aiba doar unul in plus deoarece 1.x * 2 * 3 < 2 * 2 * 2 = 8 < 9 => sqrt(1.x*2*2) < 3
-    partial_fraction_3 := Mux(fraction_to_exponent === 0.U,
-                            partial_fraction_2 & ~(1.U << ((size-2)/2)),
-                            (partial_fraction_2 >> 1) & ~(1.U << ((size-2)/2)) )
+    partial_fraction_3 := (partial_fraction_2 << ( ((size-2)/2).U)) & ~((1.U << (size.U-2.U)))
     
     val regime = Wire(SInt(size.W))
     val partial_exponent_3 = Wire(UInt(size.W))
     val exponent = Wire(UInt(size.W))
-    val exponent_to_regime = Wire(UInt(size.W))
-    partial_exponent_3 := partial_exponent_2 + fraction_to_exponent
-    exponent_to_regime := partial_exponent_3 >> io.i_posit.max_exponent_size
-    exponent := Mux(exponent_to_regime > 0.U,
-                    partial_exponent_3 & (Fill(size, 1.U(1.W))>> (size.U - io.i_posit.max_exponent_size)),
-                    partial_exponent_3)
-    regime := partial_regime_1 + exponent_to_regime.zext
+    partial_exponent_3 := partial_exponent_2
+    exponent := partial_exponent_3
+    regime := partial_regime_1
     /*
     Size occupied by the regime is the number of the same value bit
     plus one (the bit that has a different value)
@@ -95,7 +88,7 @@ class PositSqrt(es: Int, size : Int) extends Module {
     val fraction = Wire(UInt(size.W))
     fraction := Mux(fraction_size === 0.U,
                     0.U,
-                    (partial_fraction_3 >> ( ((size - 2)/2).U - fraction_size)) )
+                    (partial_fraction_3 >> ((size - 2).U - fraction_size)))
     /*
     Calculate the possible exponent size
     max(0, min(size - 1 (sign bit) - regime_size, max_exponent_size))
@@ -141,6 +134,15 @@ class PositSqrt(es: Int, size : Int) extends Module {
         io.o_posit.fraction_size := 0.U
         io.o_posit.regime_size := 0.U
         io.o_posit.sign := 0.U
+    } .elsewhen(io.i_bits === (1.U << (size-1))) {
+        io.o_posit.special_number := 1.U
+        io.o_posit.regime := (-(size-2)).S
+        io.o_posit.exponent := 0.U
+        io.o_posit.fraction := 0.U
+        io.o_posit.exponent_size := 0.U
+        io.o_posit.fraction_size := 0.U
+        io.o_posit.regime_size := 0.U
+        io.o_posit.sign := 1.U
     } .otherwise {
         //io.o_posit.sign := io.i_posit_1.sign ^ io.i_posit_2.sign
         io.o_posit.sign := 0.U
@@ -159,12 +161,12 @@ class PositSqrt(es: Int, size : Int) extends Module {
             io.o_posit.regime_size := regime_size
             io.o_posit.regime := regime
 
-            when(max_exponent_size - exponent_size >= 2.U) {
+            when( (max_exponent_size - exponent_size) >= 2.U) {
                 aux_1 := Cat(0.U, Fill((size-1), 1.U)) >> (size.U - 1.U - max_exponent_size + exponent_size)
                 aux_2 := exponent & aux_1
-                bit_nplus1 := (exponent >> (io.o_posit.max_exponent_size - exponent_size - 1.U)) & 1.U
+                bit_nplus1 := ((exponent << 1) >> (max_exponent_size - exponent_size)) & 1.U
                 bits_more := (~( (exponent & (aux_1 >> 1)) === 0.U) & 1.U) | (~(partial_fraction_3 === 0.U) & 1.U)
-                io.o_posit.exponent := (exponent >> (io.o_posit.max_exponent_size - exponent_size))
+                io.o_posit.exponent := (exponent >> (max_exponent_size - exponent_size))
                 io.o_posit.fraction := 0.U
                 io.o_posit.exponent_size := exponent_size
                 io.o_posit.fraction_size := 0.U
@@ -176,8 +178,8 @@ class PositSqrt(es: Int, size : Int) extends Module {
                 io.o_posit.exponent_size := exponent_size
                 io.o_posit.fraction_size := 0.U
             } .otherwise {
-                bit_nplus1 := ~(((partial_fraction_3 >> ( ((size - 2)/2).U - 1.U - fraction_size)) & 1.U) === 0.U)
-                bits_more := ~((partial_fraction_3 & ((1.U << (((size - 2)/2).U - 1.U - fraction_size)) - 1.U)) === 0.U)
+                bit_nplus1 := ~(((partial_fraction_3 >> ( ((size - 2)).U - 1.U - fraction_size)) & 1.U) === 0.U)
+                bits_more := ~((partial_fraction_3 & ((1.U << (((size - 2)).U - 1.U - fraction_size)) - 1.U)) === 0.U)
                 io.o_posit.exponent := exponent
                 io.o_posit.fraction := fraction
                 io.o_posit.exponent_size := exponent_size
@@ -191,8 +193,8 @@ class PositSqrt(es: Int, size : Int) extends Module {
     val possible_value = Wire(UInt(size.W))
     possible_value := 0.U
     add_one := bit_nplus1 | bits_more
-    io.debug_1 := bit_nplus1
-    io.debug_2 := bits_more
+    io.debug_1 := (max_exponent_size - exponent_size) >= 2.U
+    io.debug_2 := bit_nplus1
     when (io.o_posit.special_number) {
         io.o_bits := encode_bits
     } .otherwise {
@@ -211,7 +213,7 @@ class PositSqrt(es: Int, size : Int) extends Module {
 
 
 
-class UIntSqrt(size : Int) extends Module {
+class UIntSqrt_old_1(size : Int) extends Module {
     val io = IO(new Bundle {
         val i_bits        = Input(Bits((2*size).W))
         val o_bits        = Output(Bits(size.W))
@@ -252,4 +254,135 @@ class UIntSqrt(size : Int) extends Module {
     }
     io.o_bits := r_result
     io.o_ready :=  r_sem
+}
+
+
+class UIntSqrt_old_2(size : Int) extends Module {
+    val io = IO(new Bundle {
+        val i_bits        = Input(Bits((2*size).W))
+        val i_ready        = Input(Bool())
+        val o_bits        = Output(Bits(size.W))
+        val o_ready        = Output(Bool())
+        val o_R        = Output(Bits((size+1).W))
+        val o_D        = Output(Bits((2*size).W))
+        val o_counter  = Output(Bits(size.W))
+        val o_wR1  = Output(Bits((size+1).W))
+        val o_wR2_1  = Output(Bits((size+1).W))
+        val o_wR2_2  = Output(Bits((size+1).W))
+    })
+
+    val r_Q = RegInit(0.U(size.W))
+    val r_R = RegInit(0.S((size+1).W))
+    val r_D = RegInit(0.U((2*size).W));
+    val r_counter = RegInit(0.U(size.W))
+    val w_R1_1 = Wire(SInt((size+1).W))
+    w_R1_1 := (r_R << 2) | ( (r_D >> (r_counter + r_counter)).zext & 3.S)
+    val w_R1_2 = Wire(SInt((size+1).W))
+    w_R1_2 := w_R1_1 - ((r_Q.zext << 2) | 1.S)
+    val w_R2_1 = Wire(SInt((size+1).W))
+    w_R2_1 := (r_R << 2) | ( (r_D >> (r_counter + r_counter)).zext & 3.S)
+    val w_R2_2 = Wire(SInt((size+1).W))
+    w_R2_2 := w_R2_1 + ((r_Q.zext << 2) | 3.S)
+    
+    when(io.i_ready) {
+        r_D := io.i_bits
+        r_counter := (size-1).U
+        r_R := 0.S
+        r_Q := 0.U
+    } .otherwise {
+        when(r_R >= 0.S) {
+            r_R := w_R1_2
+            when(w_R1_2 >= 0.S) {
+                r_Q := (r_Q << 1) | 1.U
+            } .otherwise {
+                r_Q := r_Q << 1
+            }
+        } .otherwise {
+            r_R := w_R2_2
+            when(w_R2_2 >= 0.S) {
+                r_Q := (r_Q << 1) | 1.U
+            } .otherwise {
+                r_Q := r_Q << 1
+            }
+        }
+        r_counter := r_counter - 1.U
+        //r_D := r_D >> 2
+    }
+
+    io.o_bits := r_Q
+    io.o_ready :=  (r_counter === 0.U)
+
+    io.o_D := r_D
+    io.o_R := r_R.asUInt
+    io.o_counter  := r_counter
+    io.o_wR1  := w_R1_1.asUInt
+    io.o_wR2_1  := w_R1_2.asUInt
+    io.o_wR2_2  := w_R2_2.asUInt
+
+}
+
+
+
+class UIntSqrt(size : Int) extends Module {
+    val io = IO(new Bundle {
+        val i_bits        = Input(Bits((2*size).W))
+        val i_ready        = Input(Bool())
+        val o_bits        = Output(Bits(size.W))
+        val o_ready        = Output(Bool())
+        val o_R        = Output(Bits((size+1).W))
+        val o_D        = Output(Bits((2*size).W))
+        val o_counter  = Output(Bits(size.W))
+        val o_wR1  = Output(Bits((size+1).W))
+        val o_wR2_1  = Output(Bits((size+1).W))
+        val o_wR2_2  = Output(Bits((size+1).W))
+    })
+
+    val r_Q = RegInit(0.U(size.W))
+    val r_R = RegInit(0.S((size+2).W))
+    val r_D = RegInit(0.U((2*size).W));
+    val r_counter = RegInit(0.U(size.W))
+    val w_R1_1 = Wire(UInt((size+2).W))
+    w_R1_1 := (r_R(size,0) << 2) | Cat(r_D(0), r_D(1))
+    val w_R1_2 = Wire(SInt((size+2).W))
+    w_R1_2 := w_R1_1.asSInt - ((r_Q.zext << 2) | 1.S)
+    val w_R2_1 = Wire(UInt((size+2).W))
+    w_R2_1 := (r_R(size,0) << 2) | Cat(r_D(0), r_D(1))
+    val w_R2_2 = Wire(SInt((size+2).W))
+    w_R2_2 := w_R2_1.asSInt + ((r_Q.zext << 2) | 3.S)
+    
+    when(io.i_ready) {
+        r_D := Reverse(io.i_bits)
+        r_counter := 0.U
+        r_R := 0.S
+        r_Q := 0.U
+    } .otherwise {
+        when(r_R(size+1) === 0.U) {
+            r_R := w_R1_2
+            when(w_R1_2(size+1) === 0.U) {
+                r_Q := (r_Q << 1) | 1.U
+            } .otherwise {
+                r_Q := r_Q << 1
+            }
+        } .otherwise {
+            r_R := w_R2_2
+            when(w_R2_2(size+1) === 0.U) {
+                r_Q := (r_Q << 1) | 1.U
+            } .otherwise {
+                r_Q := r_Q << 1
+            }
+        }
+        r_counter := r_counter + 1.U
+        r_D := r_D >> 2
+    }
+
+    io.o_bits := r_Q
+    io.o_ready :=  (r_counter === size.U)
+
+    io.o_D := r_D
+    io.o_R := r_R.asUInt
+    io.o_counter  := r_counter
+    io.o_wR1  := w_R1_1
+    io.o_wR2_1  := w_R1_2.asUInt
+    io.o_wR2_2  := w_R2_2.asUInt
+
 }

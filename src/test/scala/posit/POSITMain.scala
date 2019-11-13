@@ -121,6 +121,112 @@ object PositTestDecodeEncode {
         return my_posit
     }
 
+    def decode(a : BigInt, size: Int, max_exponent_size : Int) : TestPosit = {
+        var my_posit: TestPosit = new TestPosit(max_exponent_size, size)
+
+        if(a == 0) {
+            my_posit.sign = 0
+            my_posit.special_number = 1
+            my_posit.regime = -(size-1)
+            my_posit.regime_size = size-1
+            my_posit.exponent = 0
+            my_posit.exponent_size = 0
+            my_posit.fraction = 0
+            my_posit.fraction_size = 0
+            return my_posit
+        }
+        if(a == (1 << (size-1))) {
+            my_posit.sign = 1
+            my_posit.special_number = 1
+            my_posit.regime = -(size-1)
+            my_posit.regime_size = size-1
+            my_posit.exponent = 0
+            my_posit.exponent_size = 0
+            my_posit.fraction = 0
+            my_posit.fraction_size = 0
+            return my_posit
+        }
+        my_posit.sign = ((a >> (size-1)) & 1).intValue
+        my_posit.special_number = 0
+        var b: BigInt = 0
+        if(my_posit.sign > 0) {
+            b = (~a & ((1<<(size-1))-1)) + 1
+        } else {
+            b = a & ((1<<(size-1))-1)
+        }
+        if(b == ((1 << (size-1)) - 1) ) {
+            my_posit.special_number = 0
+            my_posit.regime = (size-2)
+            my_posit.regime_size = size-1
+            my_posit.exponent = 0
+            my_posit.exponent_size = 0
+            my_posit.fraction = 0
+            my_posit.fraction_size = 0
+            return my_posit
+        }
+        //println("B=" + b.toString())
+        var valR: BigInt = (b >> (size -2)) & 1
+        //var valR: Int = valR2.intValue
+        //println("ValR=" + valR.toString())
+        var countReg : Int = 1
+        var sem: Int = 0
+        var aux: BigInt = 0
+        for (index <- 0 to (size-3)) {
+            aux = (b >> (size-3-index)) & 1
+            //println("index=" + index.toString())
+            //println("aux=" + aux.toString())
+            if(aux == valR && sem == 0) {
+                countReg = countReg + 1
+            } else {
+                sem = 1
+            }
+        }
+        var regime: Int = 0
+        var regime_size: Int = 0
+        if(valR == 0) {
+            regime = -countReg
+            regime_size = countReg + 1
+        } else {
+            regime = countReg - 1
+            regime_size = countReg + 1
+        }
+        //println("regime=" + regime.toString())
+        //println("regime_size=" + regime_size.toString())
+        var exponent: Int = 0
+        var exponent_size: Int = 0
+        exponent_size = size - 1 - regime_size
+        if (exponent_size > max_exponent_size) {
+            exponent_size = max_exponent_size
+        }
+        var fraction: Int = 0
+        var fraction_size: Int = 0
+        fraction_size = size - 1 - regime_size - max_exponent_size
+        if (fraction_size <= 0) {
+            fraction_size = 0;
+            fraction = 0;
+        } else {
+            fraction = (b & ((1 << (fraction_size))-1)).intValue
+        }
+        //println("fraction=" + fraction.toString())
+        //println("fraction_size=" + fraction_size.toString())
+        if(exponent_size <= 0) {
+            exponent_size = 0
+            exponent = 0
+        } else {
+            exponent = ((b & ((1 << (exponent_size + fraction_size))-1)) >> fraction_size).intValue
+        }
+        //println("exponent=" + exponent.toString())
+        //println("exponent_size=" + exponent_size.toString())
+        my_posit.regime = regime
+        my_posit.regime_size = regime_size
+        my_posit.exponent = exponent
+        my_posit.exponent_size = exponent_size
+        my_posit.fraction = fraction
+        my_posit.fraction_size = fraction_size
+        
+        return my_posit
+    }
+
     def encode(a : TestPosit, size: Int, max_exponent_size : Int) : Int = {
         var return_value: Int = 0
 
