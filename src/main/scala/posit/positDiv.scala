@@ -213,7 +213,8 @@ class PositDiv(es: Int, size : Int) extends Module {
     val add_one = Wire(Bool())
     val possible_value = Wire(UInt(size.W))
     possible_value := 0.U
-    add_one := bit_nplus1 | bits_more
+    //add_one := bit_nplus1 | bits_more
+    add_one := (bit_nplus1 & bits_more) | (bit_nplus1 & ~bits_more & (encode_bits(0)))
     io.debug_1 := fraction_to_exponent
     io.debug_2 := fraction_2_result
     when (io.o_posit.special_number) {

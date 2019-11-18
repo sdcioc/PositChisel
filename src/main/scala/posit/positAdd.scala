@@ -231,7 +231,8 @@ class PositAdd(es: Int, size : Int) extends Module {
     val special_add = Wire(Bool())
     val possible_value = Wire(UInt(size.W))
     possible_value := 0.U
-    add_one := bit_nplus1 | bits_more
+    //add_one := bit_nplus1 | bits_more
+    add_one := (bit_nplus1 & bits_more) | (bit_nplus1 & ~bits_more & (encode_bits(0)))
     special_add := io.o_posit.special_number | io.i_posit_1.special_number | io.i_posit_2.special_number
     io.debug_1 := bit_nplus1
     io.debug_2 := bits_more

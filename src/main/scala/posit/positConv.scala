@@ -50,7 +50,8 @@ class PositPositInt(es: Int, size : Int) extends Module {
         bits_more := 0.U
     }
     val add_one = Wire(Bool())
-    add_one := bit_nplus1 | bits_more
+    //add_one := bit_nplus1 | bits_more
+    add_one := (bit_nplus1 & bits_more) | (bit_nplus1 & ~bits_more & (((value_2 >> io.o_posit.fraction_size) | value_1) & 1.U))
     val value_3 = Wire(Bits((2*size).W))
     value_3 := 0.U
     when(add_one) {
@@ -240,7 +241,8 @@ class PositIntPosit(es: Int, size : Int) extends Module {
     val add_one = Wire(Bool())
     val possible_value = Wire(UInt(size.W))
     possible_value := 0.U
-    add_one := bit_nplus1 | bits_more
+    //add_one := bit_nplus1 | bits_more
+    add_one := (bit_nplus1 & bits_more) | (bit_nplus1 & ~bits_more & (encode_bits(0)))
     io.debug_1 := bit_nplus1
     io.debug_2 := bits_more
     when (io.o_posit.special_number) {

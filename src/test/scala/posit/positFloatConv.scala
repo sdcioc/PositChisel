@@ -40,7 +40,7 @@ object PositTestPositFloat {
 class TesterPositFloat(dut : PositSGNJX) extends PeekPokeTester(dut) {
     var aux: Double = 0;
 
-    var jindex: BigInt = new BigInteger("464aeb21", 16)
+    var jindex: BigInt = new BigInteger("46487eca", 16)
     aux = PositTestPositFloat.int_SGNJ(jindex, 32, 3)
     println("jindex is: " + jindex.toString)
     println("aux is: " + aux.toString)

@@ -185,7 +185,8 @@ class PositMul(es: Int, size : Int) extends Module {
     val add_one = Wire(Bool())
     val possible_value = Wire(UInt(size.W))
     possible_value := 0.U
-    add_one := bit_nplus1 | bits_more
+    //add_one := bit_nplus1 | bits_more
+    add_one := (bit_nplus1 & bits_more) | (bit_nplus1 & ~bits_more & (encode_bits(0)))
     io.debug_1 := io.i_posit_1.sign ^ io.i_posit_2.sign
     io.debug_2 := io.i_posit_2.exponent
     when (io.o_posit.special_number) {
