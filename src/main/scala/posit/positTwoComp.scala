@@ -5,7 +5,7 @@ import chisel3._
 import chisel3.Driver
 import chisel3.util._
 
-class PositTwoComp(es: Int, size : Int) extends Module {
+class PositTwoComp(size : Int) extends Module {
     val io = IO(new Bundle {
         val i_bits        = Input(Bits(size.W))
         val o_bits        = Output(Bits(size.W))
