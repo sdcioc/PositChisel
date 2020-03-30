@@ -183,6 +183,7 @@ class TestPosit (val size : Int) {
     def sqrt() : TestPosit = {
         var my_posit: TestPosit = new TestPosit(this.size)
         var aux : BigInt = 0
+        var sqrt_result_double : Double = 0
 
         if( this.special_number == 1 ) {
             my_posit = this
@@ -201,11 +202,15 @@ class TestPosit (val size : Int) {
         aux = aux << this.exponent_size
         my_posit.exponent = (aux + this.exponent) >> 1
         my_posit.exponent_size = this.exponent_size
-        my_posit.fraction_size = this.fraction_size >> 1
+        my_posit.fraction_size = ( this.fraction_size + (this.fraction_size & 1) ) >> 1
         //my_posit.fraction = sqrt(this.fraction << (this.exponent & 1 + this.fraction_size & 1))
         //TODO
-        my_posit.fraction = 0
-        my_posit.b_m = 0
+        sqrt_result_double = scala.math.sqrt( ( this.fraction << ( (this.exponent & 1).toInt + (this.fraction_size & 1) ) ).toLong )
+        my_posit.fraction = new BigInteger(sqrt_result_double.toLong.toString())
+        if (sqrt_result_double != sqrt_result_double.toLong.toDouble)
+            my_posit.b_m = 1
+        else
+            my_posit.b_m = 0
         return my_posit
     }
 
@@ -490,6 +495,7 @@ class TestPosit (val size : Int) {
         var ps : Int = 0
         var es: Int = 0
         var fs: Int = 0
+        var aux: BigInt = 0
         fraction = this.fraction
         exponent = this.exponent
         regime = this.regime
@@ -497,12 +503,16 @@ class TestPosit (val size : Int) {
         es = this.exponent_size
         fs = this.fraction_size
         
-        while(fraction >= (1<<(fs+1))) {
+        aux = 1
+        aux = aux << (fs+1)
+        while(fraction >= aux) {
             fraction = fraction >> 1
             exponent = exponent + 1
         }
         if(fraction != 0) {
-            while(fraction < (1<<(fs))) {
+            aux = 1
+            aux = aux << (fs)
+            while(fraction < aux) {
                 fraction = fraction << 1
                 exponent = exponent - 1
             }
@@ -543,12 +553,16 @@ class TestPosit (val size : Int) {
         var addOne: BigInt = 0
         var exponent_bits: BigInt = 0
         var fraction_bits: BigInt = 0
+        var aux : BigInt = 0
+        var aux_2 : BigInt = 0
         ps = this.size
 
 
         if(this.special_number == 1) {
             if(this.sign == 1) {
-                return_value = 1 << (ps-1)
+                aux = 1
+                aux = aux << (ps-1)
+                return_value = aux
             } else {
                 return_value = 0
             }
@@ -567,14 +581,21 @@ class TestPosit (val size : Int) {
             return_value = 0
             return return_value
         } else if(regime >= (ps-2)) {
-            return_value = (1 << (ps-1)) - 1
+            aux = 1
+            aux = aux << (ps-1)
+            aux - aux - 1
+            return_value = aux
         } else if(regime < -(ps-2)) {
             return_value = 1
         } else {
             if(regime >= 0) {
                 rn = regime + 1
                 rs = rn + 1
-                regime_bits = ((1<<rn)-1) << 1
+                aux = 1
+                aux = aux << rn
+                aux = aux - 1
+                aux = aux << 1
+                regime_bits = aux
             } else {
                 rn = -regime
                 rs = rn + 1
@@ -605,16 +626,24 @@ class TestPosit (val size : Int) {
                 } else {
                     //println("fraction_bits_aux=" + (fraction & ((1<<(fs-frs-1))-1)).toString())
                     //println("fraction_bits_aux2=" + fraction.toString(2))
-                    b_nplus1 = ((fraction & (1<<(fs-frs-1))) != 0) || b_nplus1
+                    aux = 1
+                    aux = aux << (fs-frs-1)
+                    b_nplus1 = ((fraction & aux) != 0) || b_nplus1
                     if(frs <= (fs-2)) {
-                        b_m = ((fraction & ((1<<(fs-frs-1))-1)) != 0) || b_m
+                        aux = 1
+                        aux = aux << (fs-frs-1)
+                        aux = aux - 1
+                        b_m = ((fraction & aux) != 0) || b_m
                     } else {
                         b_m = b_m
                     }
                     if(frs == 0 ) {
                         fraction_bits = 0
                     } else {
-                        fraction_bits = (fraction & ((1<<fs)-1)) >> (fs-frs)
+                        aux = 1
+                        aux = aux << (fs)
+                        aux = aux - 1
+                        fraction_bits = (fraction & aux) >> (fs-frs)
                     }
                 }
             } else {
@@ -624,7 +653,10 @@ class TestPosit (val size : Int) {
                     exponent_bits = (exponent & ((1<<es)-1)) >> (es-ers)
                 }
                 b_nplus1 = ((exponent & (1<<(es-ers-1))) != 0) || b_nplus1
-                b_m = ((fraction & ((1<<fs)-1))!=0) || b_m
+                aux = 1
+                aux = aux << (fs)
+                aux = aux - 1
+                b_m = ((fraction & aux)!=0) || b_m
                 if(es-ers > 1) {
                     b_m = ((exponent & ((1<<(es-ers-1))-1)) != 0) || b_m
                 }
@@ -644,7 +676,12 @@ class TestPosit (val size : Int) {
             return_value = return_value + addOne
         }
         if(this.sign == 1) {
-            return_value = ((~(return_value)+1) & ((1 << (ps-1)) - 1)) | (1<<(ps-1))
+            aux = 1
+            aux = aux << (ps-1)
+            aux_2 = aux
+            aux = aux - 1
+
+            return_value = ((~(return_value)+1) & aux) | aux_2
         }
         return return_value
     }
@@ -785,17 +822,17 @@ POSIT - ADD/SUB
 */
 
 class AdderSubtractorTester(dut : PositAdderSubtractorTester) extends PeekPokeTester(dut) {
-    var i_posit_1: TestPosit = new TestPosit(8)
-    var i_posit_2: TestPosit = new TestPosit(8)
-    var o_posit: TestPosit = new TestPosit(8)
+    var i_posit_1: TestPosit = new TestPosit(32)
+    var i_posit_2: TestPosit = new TestPosit(32)
+    var o_posit: TestPosit = new TestPosit(32)
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
     var bigValue_1 : BigInt = 0
     var bigValue_2 : BigInt = 0
      //poke(dut.io.i_bits, "b1_0000_000_0000_0000_0000_0000_0000_0001".asUInt(32.W))
     /*
-    var value_1: Int = 0
-    var value_2: Int = 1
+    var value_1: Int = 1
+    var value_2: Int = 5
     bigValue_1 = new BigInteger(value_1.toString())
     i_posit_1.decodeBinary(bigValue_1, max_exponent_size)
     bigValue_2 = new BigInteger(value_2.toString())
@@ -805,7 +842,9 @@ class AdderSubtractorTester(dut : PositAdderSubtractorTester) extends PeekPokeTe
     poke(dut.io.i_op, 1)
     poke(dut.io.i_es, max_exponent_size)
     step(1)
-    o_posit = i_posit_1 + i_posit_2
+    o_posit = i_posit_1 - i_posit_2
+    println(i_posit_1.displayValue())
+    println(i_posit_2.displayValue())
     println("Regim is: " + peek(dut.io.debug_regime_2).toString)
     println("exponent is: " + peek(dut.io.debug_exponent_2).toString(2))
     println("fraction is: " + peek(dut.io.debug_fraction_2).toString(2))
@@ -831,10 +870,10 @@ class AdderSubtractorTester(dut : PositAdderSubtractorTester) extends PeekPokeTe
             i_posit_2.decodeBinary(bigValue_2, max_exponent_size)
             poke(dut.io.i_posit_1, bigValue_1)
             poke(dut.io.i_posit_2, bigValue_2)
-            poke(dut.io.i_op, 1)
+            poke(dut.io.i_op, 0)
             poke(dut.io.i_es, max_exponent_size)
             step(1)
-            o_posit = i_posit_1 - i_posit_2
+            o_posit = i_posit_1 + i_posit_2
             expect(dut.io.o_posit, o_posit.binaryEncode())
         }
     }
@@ -844,7 +883,7 @@ class AdderSubtractorTester(dut : PositAdderSubtractorTester) extends PeekPokeTe
 }
 
 object AdderSubtractorTester extends App {
-    chisel3.iotesters.Driver(() => new PositAdderSubtractorTester(8)) { c => new AdderSubtractorTester(c) }
+    chisel3.iotesters.Driver(() => new PositAdderSubtractorTester(32)) { c => new AdderSubtractorTester(c) }
 }
 
 /*
@@ -852,9 +891,9 @@ POSIT - MUL
 */
 
 class MultiplierTester(dut : PositMultiplierTester) extends PeekPokeTester(dut) {
-    var i_posit_1: TestPosit = new TestPosit(8)
-    var i_posit_2: TestPosit = new TestPosit(8)
-    var o_posit: TestPosit = new TestPosit(8)
+    var i_posit_1: TestPosit = new TestPosit(32)
+    var i_posit_2: TestPosit = new TestPosit(32)
+    var o_posit: TestPosit = new TestPosit(32)
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
     var bigValue_1 : BigInt = 0
@@ -908,7 +947,7 @@ class MultiplierTester(dut : PositMultiplierTester) extends PeekPokeTester(dut) 
 }
 
 object MultiplierTester extends App {
-    chisel3.iotesters.Driver(() => new PositMultiplierTester(8)) { c => new MultiplierTester(c) }
+    chisel3.iotesters.Driver(() => new PositMultiplierTester(32)) { c => new MultiplierTester(c) }
 }
 
 
@@ -917,17 +956,17 @@ POSIT - DIV
 */
 
 class DividerTester(dut : PositDividerTester) extends PeekPokeTester(dut) {
-    var i_posit_1: TestPosit = new TestPosit(8)
-    var i_posit_2: TestPosit = new TestPosit(8)
-    var o_posit: TestPosit = new TestPosit(8)
+    var i_posit_1: TestPosit = new TestPosit(32)
+    var i_posit_2: TestPosit = new TestPosit(32)
+    var o_posit: TestPosit = new TestPosit(32)
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
     var bigValue_1 : BigInt = 0
     var bigValue_2 : BigInt = 0
      //poke(dut.io.i_bits, "b1_0000_000_0000_0000_0000_0000_0000_0001".asUInt(32.W))
     /*
-    var value_1: Int = 5
-    var value_2: Int = 91
+    var value_1: Int = 1
+    var value_2: Int = 1
     bigValue_1 = new BigInteger(value_1.toString())
     i_posit_1.decodeBinary(bigValue_1, max_exponent_size)
     bigValue_2 = new BigInteger(value_2.toString())
@@ -973,7 +1012,7 @@ class DividerTester(dut : PositDividerTester) extends PeekPokeTester(dut) {
 }
 
 object DividerTester extends App {
-    chisel3.iotesters.Driver(() => new PositDividerTester(8)) { c => new DividerTester(c) }
+    chisel3.iotesters.Driver(() => new PositDividerTester(32)) { c => new DividerTester(c) }
 }
 
 
@@ -985,7 +1024,7 @@ POSIT INT CONVERSION
 
 
 class PositToIntTester(dut : PositPositToIntTester) extends PeekPokeTester(dut) {
-    var i_posit: TestPosit = new TestPosit(8)
+    var i_posit: TestPosit = new TestPosit(32)
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
     var bigValue : BigInt = 0
@@ -1008,7 +1047,7 @@ class PositToIntTester(dut : PositPositToIntTester) extends PeekPokeTester(dut) 
     println(i_posit.displayValue())
     
     */
-    for (value <- 0 until  256) {
+    for (value <- 0 until  65535) {
         bigValue = new BigInteger(value.toString())
         i_posit.decodeBinary(bigValue, max_exponent_size)
         poke(dut.io.i_posit, bigValue)
@@ -1022,12 +1061,12 @@ class PositToIntTester(dut : PositPositToIntTester) extends PeekPokeTester(dut) 
 }
 
 object PositToIntTester extends App {
-    chisel3.iotesters.Driver(() => new PositPositToIntTester(8,32)) { c => new PositToIntTester(c) }
+    chisel3.iotesters.Driver(() => new PositPositToIntTester(32,32)) { c => new PositToIntTester(c) }
 }
 
 
 class IntToPositTester(dut : PositIntToPositTester ) extends PeekPokeTester(dut) {
-    var i_posit: TestPosit = new TestPosit(8)
+    var i_posit: TestPosit = new TestPosit(32)
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
     var bigValue : BigInt = 0
@@ -1050,7 +1089,7 @@ class IntToPositTester(dut : PositIntToPositTester ) extends PeekPokeTester(dut)
     println(i_posit.displayValue())
     
     */
-    for (value <- 0 until  256) {
+    for (value <- 0 until  65535) {
         bigValue = new BigInteger(value.toString())
         i_posit.fromBigInt(bigValue, integer_size, max_exponent_size)
         poke(dut.io.i_integer, bigValue)
@@ -1064,7 +1103,7 @@ class IntToPositTester(dut : PositIntToPositTester ) extends PeekPokeTester(dut)
 }
 
 object IntToPositTester extends App {
-    chisel3.iotesters.Driver(() => new PositIntToPositTester (8,32)) { c => new IntToPositTester(c) }
+    chisel3.iotesters.Driver(() => new PositIntToPositTester (32,32)) { c => new IntToPositTester(c) }
 }
 
 
@@ -1073,8 +1112,8 @@ POSIT CMP
 */
 
 class TesterLPosit(dut : PositL) extends PeekPokeTester(dut) {
-     var i_posit_1: TestPosit = new TestPosit(8)
-    var i_posit_2: TestPosit = new TestPosit(8)
+     var i_posit_1: TestPosit = new TestPosit(32)
+    var i_posit_2: TestPosit = new TestPosit(32)
     var o_result: Boolean = false
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
@@ -1114,13 +1153,13 @@ class TesterLPosit(dut : PositL) extends PeekPokeTester(dut) {
 }
 
 object TesterLPosit extends App {
-    chisel3.iotesters.Driver(() => new PositL(8)) { c => new TesterLPosit(c) }
+    chisel3.iotesters.Driver(() => new PositL(32)) { c => new TesterLPosit(c) }
 }
 
 
 class TesterEPosit(dut : PositE) extends PeekPokeTester(dut) {
-    var i_posit_1: TestPosit = new TestPosit(8)
-    var i_posit_2: TestPosit = new TestPosit(8)
+    var i_posit_1: TestPosit = new TestPosit(32)
+    var i_posit_2: TestPosit = new TestPosit(32)
     var o_result: Boolean = false
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
@@ -1161,35 +1200,36 @@ class TesterEPosit(dut : PositE) extends PeekPokeTester(dut) {
 }
 
 object TesterEPosit extends App {
-    chisel3.iotesters.Driver(() => new PositE(8)) { c => new TesterEPosit(c) }
+    chisel3.iotesters.Driver(() => new PositE(32)) { c => new TesterEPosit(c) }
 }
 
 
 
 class PositSGNJTester(dut : PositSGNJ) extends PeekPokeTester(dut) {
-    var i_posit_1: TestPosit = new TestPosit(8)
-    var i_posit_2: TestPosit = new TestPosit(8)
-    var o_posit: TestPosit = new TestPosit(8)
+    var i_posit_1: TestPosit = new TestPosit(32)
+    var i_posit_2: TestPosit = new TestPosit(32)
+    var o_posit: TestPosit = new TestPosit(32)
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
     var bigValue_1 : BigInt = 0
     var bigValue_2 : BigInt = 0
      //poke(dut.io.i_bits, "b1_0000_000_0000_0000_0000_0000_0000_0001".asUInt(32.W))
     /*
-    var value_1: Int = 128
-    var value_2: Int = 130
+    var value_1: Int = 0
+    var value_2: Int = 0
     bigValue_1 = new BigInteger(value_1.toString())
     i_posit_1.decodeBinary(bigValue_1, max_exponent_size)
     bigValue_2 = new BigInteger(value_2.toString())
     i_posit_2.decodeBinary(bigValue_2, max_exponent_size)
     poke(dut.io.i_bits_1, bigValue_1)
     poke(dut.io.i_bits_2, bigValue_2)
-    poke(dut.io.i_op, 0)
+    poke(dut.io.i_op, 1)
     step(1)
-    o_posit = i_posit_1.sgnj(i_posit_2, 0)
-    expect(dut.io.o_result, o_result)
+    o_posit = i_posit_1.sgnj(i_posit_2, 1)
+    expect(dut.io.o_bits,  o_posit.binaryEncode())
     println(i_posit_1.displayValue())
     println(i_posit_2.displayValue())
+    println(o_posit.displayValue())
     
     
     */
@@ -1211,14 +1251,14 @@ class PositSGNJTester(dut : PositSGNJ) extends PeekPokeTester(dut) {
 }
 
 object PositSGNJTester extends App {
-    chisel3.iotesters.Driver(() => new PositSGNJ(8)) { c => new PositSGNJTester(c) }
+    chisel3.iotesters.Driver(() => new PositSGNJ(32)) { c => new PositSGNJTester(c) }
 }
 
 
 class PositMinMaxTester(dut : PositMinMax) extends PeekPokeTester(dut) {
-    var i_posit_1: TestPosit = new TestPosit(8)
-    var i_posit_2: TestPosit = new TestPosit(8)
-    var o_posit: TestPosit = new TestPosit(8)
+    var i_posit_1: TestPosit = new TestPosit(32)
+    var i_posit_2: TestPosit = new TestPosit(32)
+    var o_posit: TestPosit = new TestPosit(32)
     var aux: BigInt = 0;
     var max_exponent_size: Int = 3
     var bigValue_1 : BigInt = 0
@@ -1260,5 +1300,57 @@ class PositMinMaxTester(dut : PositMinMax) extends PeekPokeTester(dut) {
 }
 
 object PositMinMaxTester extends App {
-    chisel3.iotesters.Driver(() => new PositMinMax(8)) { c => new PositMinMaxTester(c) }
+    chisel3.iotesters.Driver(() => new PositMinMax(32)) { c => new PositMinMaxTester(c) }
+}
+
+
+class SQRTTester(dut : PositSQRTTester) extends PeekPokeTester(dut) {
+    var i_posit: TestPosit = new TestPosit(32)
+    var o_posit: TestPosit = new TestPosit(32)
+    var aux: BigInt = 0;
+    var max_exponent_size: Int = 3
+    var bigValue : BigInt = 0
+     //poke(dut.io.i_bits, "b1_0000_000_0000_0000_0000_0000_0000_0001".asUInt(32.W))
+    /*
+    var value: Int = 17
+    bigValue = new BigInteger(value.toString())
+    i_posit.decodeBinary(bigValue, max_exponent_size)
+    poke(dut.io.i_posit, bigValue)
+    poke(dut.io.i_es, max_exponent_size)
+    poke(dut.io.i_ready, 1)
+    step(1)
+    poke(dut.io.i_ready, 0)
+    step(4)
+    println("Regim is: " + peek(dut.io.debug_regime).toString)
+    println("exponent is: " + peek(dut.io.debug_exponent).toString(2))
+    println("fraction is: " + peek(dut.io.debug_fraction).toString(2))
+    println("debug_b_nplus1 size is: " + peek(dut.io.debug_b_nplus1).toString)
+    println("debug_b_m size is: " + peek(dut.io.debug_b_m).toString)
+    println("debug_addOne size is: " + peek(dut.io.debug_addOne).toString)
+    println("debug_fs size is: " + peek(dut.io.debug_fs).toString)
+    o_posit = i_posit.sqrt()
+    expect(dut.io.o_posit, o_posit.binaryEncode())
+    println(i_posit.displayValue())
+    println(o_posit.displayValue())
+    
+    
+    */
+    for (value <- 0 until  65535) {
+        bigValue = new BigInteger(value.toString())
+        i_posit.decodeBinary(bigValue, max_exponent_size)
+        poke(dut.io.i_posit, bigValue)
+        poke(dut.io.i_es, max_exponent_size)
+        poke(dut.io.i_ready, 1)
+        step(1)
+        poke(dut.io.i_ready, 0)
+        step(16)
+        o_posit = i_posit.sqrt()
+        expect(dut.io.o_posit, o_posit.binaryEncode())
+        expect(dut.io.o_ready, 1)
+    }
+    //*/
+}
+
+object SQRTTester extends App {
+    chisel3.iotesters.Driver(() => new PositSQRTTester(32)) { c => new SQRTTester(c) }
 }

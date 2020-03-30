@@ -45,6 +45,7 @@ class PositMultiplier (ps : Int) extends Module {
         io.o_posit.b_m := 0.U
     }
 }
+
 class PositMultiplierTester (ps : Int) extends Module {
     val io = IO(new Bundle {
         val i_posit_1 = Input(Bits(ps.W))

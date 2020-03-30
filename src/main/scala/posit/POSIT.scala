@@ -205,7 +205,7 @@ class DecodePosit(size : Int) extends Module {
     })
 
     val rs = Wire(UInt(size.W))
-    val ers = Wire(UInt(size.W))
+    val ers = Wire(UInt(log2Ceil(size).W))
   
     io.o_posit.special_number := Mux( (io.i_bits === Fill(size, 0.U(1.W))) ||
                                       (io.i_bits === (1.U(1.W) << (size-1) )),

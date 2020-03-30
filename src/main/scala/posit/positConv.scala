@@ -13,10 +13,14 @@ class PositToInt(ps : Int, is : Int) extends Module {
 
     val exponent = Wire(UInt((2*ps).W))
     val integer_aux = Wire(UInt(is.W))
+    val shiftLeft = Wire(UInt((log2Ceil(2*ps)+1).W))
+    val shiftRight = Wire(UInt((log2Ceil(2*ps)+1).W))
 
     io.o_integer := 0.U
     exponent := 0.U
     integer_aux := 0.U
+    shiftLeft := 0.U
+    shiftRight := 0.U
     when( (io.i_posit.sign & io.i_posit.special_number) === 1.U ) {
         io.o_integer := Cat(0.U(1.W),Fill(is-1, 1.U(1.W)))
     } .elsewhen ( (~io.i_posit.sign & io.i_posit.special_number) === 1.U) {
@@ -29,9 +33,11 @@ class PositToInt(ps : Int, is : Int) extends Module {
             integer_aux := Cat(0.U(1.W),Fill(is-1, 1.U(1.W)))
         } .otherwise {
             when(exponent > io.i_posit.fraction_size) {
-                integer_aux := io.i_posit.fraction << (exponent - io.i_posit.fraction_size)
+                shiftLeft := (exponent - io.i_posit.fraction_size)
+                integer_aux := io.i_posit.fraction << shiftLeft
             } .otherwise {
-                integer_aux := io.i_posit.fraction >> (io.i_posit.fraction_size - exponent)
+                shiftRight := (io.i_posit.fraction_size - exponent)
+                integer_aux := io.i_posit.fraction >> shiftRight
             }
         }
         when(io.i_posit.sign) {
