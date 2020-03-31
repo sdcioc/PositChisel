@@ -1354,3 +1354,22 @@ class SQRTTester(dut : PositSQRTTester) extends PeekPokeTester(dut) {
 object SQRTTester extends App {
     chisel3.iotesters.Driver(() => new PositSQRTTester(32)) { c => new SQRTTester(c) }
 }
+
+
+
+class DisplayValueTester(dut : PositSQRTTester) extends PeekPokeTester(dut) {
+    var i_posit: TestPosit = new TestPosit(32)
+    var max_exponent_size: Int = 3
+    var aux: Double = 0;
+
+    var jindex: BigInt = new BigInteger("4e800000", 16)
+    i_posit.decodeBinary(jindex, max_exponent_size)
+    println("jindex is: " + jindex.toString)
+    println("aux is: " + i_posit.toDouble())
+    println(i_posit.displayValue())
+    //*/
+}
+
+object DisplayValueTester extends App {
+    chisel3.iotesters.Driver(() => new PositSQRTTester(8)) { c => new DisplayValueTester(c) }
+}
